@@ -14,7 +14,7 @@
 const cheerio = require('cheerio');
 
 const BASE_URL = 'https://isimsf.rnu.tn/';
-const HOME_URL = 'https://isimsf.rnu.tn/fra';
+const HOME_URL = 'https://isimsf.rnu.tn/';
 
 // French month abbreviations as used on the site -> month index (0-11)
 const FR_MONTHS = {
@@ -148,20 +148,39 @@ function parseAnnouncements(html, { now = new Date() } = {}) {
  * structural parse failure — caller (scheduler) is responsible for catching,
  * logging, and NOT deleting existing data / NOT sending notifications on error.
  */
-async function fetchAnnouncements(fetchImpl = require('node-fetch')) {
+async function fetchOnce(fetchImpl, timeoutMs) {
   const res = await fetchImpl(HOME_URL, {
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CampusWatch-Monitor/1.0 (personal use, low-frequency polling)',
     },
-    timeout: 15000,
+    timeout: timeoutMs,
   });
 
   if (!res.ok) {
     throw new Error(`ISIMS_FETCH_FAILED: HTTP ${res.status} ${res.statusText}`);
   }
 
-  const html = await res.text();
+  return res.text();
+}
+
+async function fetchAnnouncements(fetchImpl = require('node-fetch')) {
+  // ISIMS is a Tunisian academic site and can be slow (or briefly flaky) to
+  // reach from Render's US/EU datacenter IPs, even when it loads fine from a
+  // regular browser. Use a longer timeout and one retry before giving up —
+  // monitor.js already handles a genuine failure safely (no data loss, no
+  // fake notifications), this just avoids treating a slow response as one.
+  const TIMEOUT_MS = 30000;
+
+  let html;
+  try {
+    html = await fetchOnce(fetchImpl, TIMEOUT_MS);
+  } catch (err) {
+    console.warn(`[scraper] First attempt failed (${err.message}), retrying once...`);
+    await new Promise((r) => setTimeout(r, 3000));
+    html = await fetchOnce(fetchImpl, TIMEOUT_MS);
+  }
+
   return parseAnnouncements(html);
 }
 
