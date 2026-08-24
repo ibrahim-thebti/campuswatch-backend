@@ -4,13 +4,11 @@
  * Minimal API the Android app talks to. The app never talks to ISIMS or the
  * database directly — only to this backend, which owns all secrets.
  */
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { getClient, getLatestAnnouncements, upsertPushSubscription, setNotificationsEnabled, getLastSuccessfulRun } = require('./db');
 const { startScheduler } = require('./scheduler');
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -18,6 +16,32 @@ app.use(express.json());
 // --- Health check (also used by uptime monitors / Render) -----------------
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'campuswatch-backend', time: new Date().toISOString() });
+});
+
+// --- TEMPORARY diagnostic route — remove once ISIMS fetch issue is solved ---
+app.get('/debug/isims', async (req, res) => {
+  const fetch = require('node-fetch');
+  const started = Date.now();
+  try {
+    const r = await fetch('https://isimsf.rnu.tn/', { timeout: 20000 });
+    const text = await r.text();
+    res.json({
+      ok: true,
+      ms: Date.now() - started,
+      status: r.status,
+      bodyLength: text.length,
+      bodyPreview: text.slice(0, 200),
+    });
+  } catch (err) {
+    res.json({
+      ok: false,
+      ms: Date.now() - started,
+      errorName: err.name,
+      errorCode: err.code,
+      errorType: err.type,
+      errorMessage: err.message,
+    });
+  }
 });
 
 // --- Announcements ----------------------------------------------------------
