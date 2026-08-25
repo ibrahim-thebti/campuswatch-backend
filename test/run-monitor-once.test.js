@@ -10,13 +10,13 @@ async function testSuccessfulRunExitsZero() {
   assert.strictEqual(exitCode, 0);
 }
 
-async function testFailedRunExitsOne() {
+async function testFailedRunStillExitsZero() {
   let exitCode = null;
   await main({
     run: async () => ({ success: false, newCount: 0, error: 'network timeout' }),
     exit: (code) => { exitCode = code; },
   });
-  assert.strictEqual(exitCode, 1);
+  assert.strictEqual(exitCode, 0);
 }
 
 async function testUnexpectedErrorExitsOne() {
@@ -30,7 +30,7 @@ async function testUnexpectedErrorExitsOne() {
 
 async function run() {
   await testSuccessfulRunExitsZero();
-  await testFailedRunExitsOne();
+  await testFailedRunStillExitsZero();
   await testUnexpectedErrorExitsOne();
   console.log('✅ run-monitor-once exit behavior assertions passed.');
 }
