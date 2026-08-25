@@ -97,9 +97,15 @@ Render's IP).
   too (see `scripts/run-monitor-once.js` log output from run on
   2026-08-25T09:25:07Z: `network timeout at: https://isimsf.rnu.tn/`).
 
-`scripts/run-monitor-once.js` exits non-zero when
-`runMonitorOnce()` returns `success: false`, so the GitHub Actions check now
-correctly fails on monitor fetch/parse failures.
+**⚠️ Important — do not trust the GitHub Actions green checkmark as-is:**
+PR #1 ("Handle monitor transient failures without failing workflow") changed
+`scripts/run-monitor-once.js` to always `exit(0)`, even when the ISIMS fetch
+fails. This means the Actions tab will show a permanent green "Success"
+regardless of whether any data was actually fetched. **The badge is
+currently not a reliable signal.** Before relying on this workflow again,
+either revert that behavior (exit non-zero on `result.success === false`)
+or add separate, honest monitoring (e.g. alert on `newCount`/`success`
+inside the log, not on the job's exit code).
 
 **Options to actually fix this (not yet done):**
 1. Run the monitor job from a machine on a normal Tunisian/residential

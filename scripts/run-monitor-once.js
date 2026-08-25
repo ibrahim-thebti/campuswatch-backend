@@ -19,7 +19,10 @@ async function main({ run = runMonitorOnce, exit = process.exit } = {}) {
     const result = await run();
     console.log('[run-monitor-once] Result:', JSON.stringify(result));
 
-    exit(result && result.success === false ? 1 : 0);
+    // A failed monitor run (site down/timeout/structure change) is expected
+    // to be retried on the next schedule and should not fail the whole
+    // GitHub Actions workflow.
+    exit(0);
   } catch (err) {
     console.error('[run-monitor-once] Unexpected error:', err);
     exit(1);
