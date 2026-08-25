@@ -31,11 +31,22 @@ function isKnownIsimsNetworkTimeout(result) {
   return mentionsIsims && isNetworkFailure;
 }
 
+function isStrictSuccessRequired() {
+  return String(process.env.REQUIRE_MONITOR_SUCCESS || '').toLowerCase() === 'true';
+}
+
 runMonitorOnce()
   .then((result) => {
     console.log('[run-monitor-once] Result:', JSON.stringify(result));
     if (result.success) {
       process.exit(0);
+    }
+
+    if (isStrictSuccessRequired()) {
+      console.error(
+        '[run-monitor-once] REQUIRE_MONITOR_SUCCESS=true: failing workflow because monitor result was not successful.'
+      );
+      process.exit(1);
     }
 
     if (isKnownIsimsNetworkTimeout(result)) {
