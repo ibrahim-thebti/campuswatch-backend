@@ -14,10 +14,39 @@
 require('dotenv').config();
 const { runMonitorOnce } = require('../src/monitor');
 
+function isKnownIsimsNetworkTimeout(result) {
+  if (typeof result?.error !== 'string') return false;
+
+  const error = result.error.toLowerCase();
+  const mentionsIsims = error.includes('isimsf.rnu.tn');
+  const isNetworkFailure =
+    error.includes('timeout') ||
+    error.includes('enotfound') ||
+    error.includes('eai_again') ||
+    error.includes('econnreset') ||
+    error.includes('etimedout') ||
+    error.includes('fetch failed') ||
+    error.includes('failed, reason');
+
+  return mentionsIsims && isNetworkFailure;
+}
+
 runMonitorOnce()
   .then((result) => {
     console.log('[run-monitor-once] Result:', JSON.stringify(result));
-    process.exit(result.success ? 0 : 1);
+    if (result.success) {
+      process.exit(0);
+    }
+
+    if (isKnownIsimsNetworkTimeout(result)) {
+      console.warn(
+        '[run-monitor-once] Known ISIMS network timeout from cloud runner; treating this run as non-fatal for workflow status.'
+      );
+      console.log('[run-monitor-once] Workflow Result:', JSON.stringify({ success: true, reason: 'known_isims_network_timeout' }));
+      process.exit(0);
+    }
+
+    process.exit(1);
   })
   .catch((err) => {
     console.error('[run-monitor-once] Unexpected error:', err);
