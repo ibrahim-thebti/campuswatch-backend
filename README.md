@@ -73,3 +73,51 @@ improves the reliability of the 15-minute check cadence.
 - `GET /api/status` — `{ monitoring: true, last_checked_at }`
 - `POST /api/subscribe` — `{ deviceId, expoPushToken, notificationsEnabled }`
 - `POST /api/settings/notifications` — `{ deviceId, enabled }`
+
+## ⚠️ Known issue: ISIMS is unreachable from cloud hosts (unresolved)
+
+As of 2026-08-25, `src/scraper.js` cannot actually reach
+`https://isimsf.rnu.tn/` when deployed on either Render or GitHub Actions —
+every request silently times out (no HTTP error, no TLS error, just a dead
+connection). The site loads fine from a normal home/ISP connection in
+Tunisia, including in a browser.
+
+**Root cause (likely):** `isimsf.rnu.tn` sits on Tunisia's national academic
+network (RNU), operated by CCK, which almost certainly filters traffic from
+foreign cloud/datacenter IP ranges (AWS — used by Render; Azure — used by
+GitHub Actions runners) at the network level. This is very likely true of
+*all* `.rnu.tn` sites, not just ISIMS specifically — see chat history from
+2026-08-25 for the full diagnosis (including a temporary `/debug/isims`
+route that confirmed a raw 20s timeout with no response at all from
+Render's IP).
+
+**What was ruled out:**
+- Render (AWS-backed) — confirmed blocked via `/debug/isims` diagnostic route.
+- GitHub Actions (`ubuntu-latest` runners, Azure-backed) — confirmed blocked
+  too (see `scripts/run-monitor-once.js` log output from run on
+  2026-08-25T09:25:07Z: `network timeout at: https://isimsf.rnu.tn/`).
+
+**⚠️ Important — do not trust the GitHub Actions green checkmark as-is:**
+PR #1 ("Handle monitor transient failures without failing workflow") changed
+`scripts/run-monitor-once.js` to always `exit(0)`, even when the ISIMS fetch
+fails. This means the Actions tab will show a permanent green "Success"
+regardless of whether any data was actually fetched. **The badge is
+currently not a reliable signal.** Before relying on this workflow again,
+either revert that behavior (exit non-zero on `result.success === false`)
+or add separate, honest monitoring (e.g. alert on `newCount`/`success`
+inside the log, not on the job's exit code).
+
+**Options to actually fix this (not yet done):**
+1. Run the monitor job from a machine on a normal Tunisian/residential
+   connection (e.g. a scheduled task on a personal PC) — confirmed to work,
+   just requires the machine to be on.
+2. Route the fetch through a paid scraping proxy with a non-blocked exit IP
+   (e.g. ScraperAPI, Bright Data) — costs money, keeps everything cloud-only.
+3. Untested: a Cloudflare Worker relay (fetch ISIMS from Cloudflare's edge,
+   have this backend call the Worker instead of ISIMS directly) — worth a
+   quick test before committing to option 2.
+
+Until one of these is in place, `npm run monitor:once` / the scheduled
+job will keep failing silently (or "successfully failing," post-PR #1) —
+the API and Android app will keep serving whatever was already saved in
+Supabase, but no new announcements will come in.
