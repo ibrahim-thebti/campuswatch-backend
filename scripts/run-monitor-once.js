@@ -14,23 +14,12 @@
 require('dotenv').config();
 const { runMonitorOnce } = require('../src/monitor');
 
-async function main({ run = runMonitorOnce, exit = process.exit } = {}) {
-  try {
-    const result = await run();
+runMonitorOnce()
+  .then((result) => {
     console.log('[run-monitor-once] Result:', JSON.stringify(result));
-
-    // A failed monitor run (site down/timeout/structure change) is expected
-    // to be retried on the next schedule and should not fail the whole
-    // GitHub Actions workflow.
-    exit(0);
-  } catch (err) {
+    process.exit(result.success ? 0 : 1);
+  })
+  .catch((err) => {
     console.error('[run-monitor-once] Unexpected error:', err);
-    exit(1);
-  }
-}
-
-if (require.main === module) {
-  main();
-}
-
-module.exports = { main };
+    process.exit(1);
+  });

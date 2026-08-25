@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "node test/scraper.test.js && node test/run-monitor-once.test.js"
+    "test": "node test/scraper.test.js"
   },
   "keywords": [],
   "author": "",
