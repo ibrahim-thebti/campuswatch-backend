@@ -106,18 +106,49 @@ currently not a reliable signal.** Before relying on this workflow again,
 either revert that behavior (exit non-zero on `result.success === false`)
 or add separate, honest monitoring (e.g. alert on `newCount`/`success`
 inside the log, not on the job's exit code).
+**Fix in progress: self-hosted GitHub Actions runner**
 
-**Options to actually fix this (not yet done):**
-1. Run the monitor job from a machine on a normal Tunisian/residential
-   connection (e.g. a scheduled task on a personal PC) — confirmed to work,
-   just requires the machine to be on.
-2. Route the fetch through a paid scraping proxy with a non-blocked exit IP
-   (e.g. ScraperAPI, Bright Data) — costs money, keeps everything cloud-only.
-3. Untested: a Cloudflare Worker relay (fetch ISIMS from Cloudflare's edge,
-   have this backend call the Worker instead of ISIMS directly) — worth a
-   quick test before committing to option 2.
+`.github/workflows/monitor.yml` now targets `runs-on: [self-hosted, isims-monitor]`
+instead of `ubuntu-latest`. This routes the fetch through a runner registered
+on a machine with a normal Tunisian ISP connection — the only option
+confirmed to actually reach `isimsf.rnu.tn` (see "What was ruled out" above).
 
-Until one of these is in place, `npm run monitor:once` / the scheduled
-job will keep failing silently (or "successfully failing," post-PR #1) —
-the API and Android app will keep serving whatever was already saved in
-Supabase, but no new announcements will come in.
+### Self-hosted runner setup
+
+Do this once, on a machine (PC or VPS) that has a normal Tunisian internet
+connection and can stay powered on / connected:
+
+1. Go to the repo on GitHub → **Settings → Actions → Runners → New
+   self-hosted runner**.
+2. Pick the OS matching your machine (Linux/Windows/macOS) and follow the
+   generated download + config commands GitHub shows you — they include a
+   one-time registration token, so copy them exactly from the GitHub UI
+   rather than from here (the token expires quickly).
+3. When prompted for labels during `./config.sh` (or `config.cmd`), add the
+   extra label `isims-monitor` in addition to the default `self-hosted` —
+   this is what the workflow's `runs-on: [self-hosted, isims-monitor]`
+   matches on.
+4. Run the runner as a persistent service so it survives reboots and stays
+   listening for scheduled triggers:
+   - Linux: `sudo ./svc.sh install && sudo ./svc.sh start`
+   - Windows: run `config.cmd` as Administrator and choose "run as a
+     service" when prompted, or use `.\svc.sh` equivalent / register via
+     `nssm`/Task Scheduler.
+5. Confirm it shows **Idle** (green) under Settings → Actions → Runners.
+6. Trigger a manual run from the **Actions** tab (`ISIMS Monitor` →
+   `Run workflow`) to confirm `success: true` before relying on the
+   15-minute schedule.
+
+**Important:** unlike GitHub-hosted runners, a self-hosted runner only picks
+up scheduled runs while the machine is on and the runner service is
+running. If the machine sleeps, loses power, or loses network, the
+15-minute checks simply won't fire until it's back — no data loss (per the
+error-handling rules above), just a gap in checking.
+
+**Not pursued:**
+- Paid scraping proxy (ScraperAPI, Bright Data) — would work but costs
+  money; self-hosted is free and already confirmed reachable.
+- Cloudflare Worker relay — Cloudflare's edge egress is also foreign
+  infrastructure, so it's very likely to hit the same RNU network-level
+  block as Render/GitHub Actions. Not worth pursuing unless self-hosted
+  proves impractical.

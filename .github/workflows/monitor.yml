@@ -9,7 +9,18 @@ on:
 
 jobs:
   check:
+<<<<<<< HEAD
     runs-on: ubuntu-latest
+=======
+    # isimsf.rnu.tn is on the Tunisian university network (RNU) and is not
+    # reliably reachable from GitHub-hosted runners (Azure US/EU IPs) or from
+    # Render's US/EU datacenter IPs — both get network timeouts even though
+    # the site loads fine from a normal Tunisian internet connection.
+    # This job therefore runs on a self-hosted runner registered from a
+    # machine on a Tunisian ISP/network. See README.md "Self-hosted runner
+    # setup" for how to register one.
+    runs-on: [self-hosted, isims-monitor]
+>>>>>>> b90567d (fix(monitor): switch check job to self-hosted runner to bypass RNU network block)
     steps:
       - uses: actions/checkout@v4
 
