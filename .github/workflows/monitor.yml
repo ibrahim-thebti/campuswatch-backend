@@ -9,7 +9,9 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Real ISIMS fetch success requires a network that can reach isimsf.rnu.tn.
+    # Register a Linux x64 self-hosted runner on such a network (e.g. Tunisia ISP/VPS).
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v4
 
@@ -25,3 +27,4 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          REQUIRE_MONITOR_SUCCESS: 'true'

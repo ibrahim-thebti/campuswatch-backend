@@ -14,7 +14,8 @@
 const cheerio = require('cheerio');
 
 const BASE_URL = 'https://isimsf.rnu.tn/';
-const HOME_URL = 'https://isimsf.rnu.tn/';
+const DEFAULT_HOME_URL = 'https://isimsf.rnu.tn/';
+const HOME_URL = process.env.ISIMS_HOME_URL || DEFAULT_HOME_URL;
 
 // French month abbreviations as used on the site -> month index (0-11)
 const FR_MONTHS = {
